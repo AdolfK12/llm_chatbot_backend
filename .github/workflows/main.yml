@@ -1,0 +1,33 @@
+name: Basic CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  check_project:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "16"
+        if: fileExists('node_backend/package.json')
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: node_backend
+        if: fileExists('node_backend/package.json')
+
+      - name: Run tests
+        run: npm test
+        working-directory: node_backend
+        if: fileExists('node_backend/package.json')
