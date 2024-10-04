@@ -4,6 +4,8 @@ const cors = require("cors");
 const pino = require("pino");
 const mongoose = require("mongoose");
 
+const chatRoutes = require("./routes/chatRoutes");
+
 const app = express();
 const logger = pino();
 const PORT = process.env.PORT || 3000;
@@ -22,6 +24,8 @@ mongoose
 app.get("/", (req, res) => {
   res.send("Welcome to LLM Customizable Chatbot Backend");
 });
+
+app.use("/api", chatRoutes);
 
 app.listen(PORT, () => {
   logger.info(`Server running on port ${PORT}`);
