@@ -45,8 +45,15 @@ app.get("/", (req, res) => {
 
 app.use("/api", chatRoutes);
 
-app.listen(PORT, () => {
-  logger.info(`Server running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== "test") {
+  app.listen(PORT, () => {
+    logger.info(`Server running on port ${PORT}`);
+  });
+}
 
-module.exports = app;
+const closeDatabase = async () => {
+  await mongoose.disconnect();
+  await redis.quit();
+};
+
+module.exports = { app, closeDatabase };
