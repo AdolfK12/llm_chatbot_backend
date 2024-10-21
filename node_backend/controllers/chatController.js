@@ -1,19 +1,5 @@
 const axios = require("axios");
-
-const retryRequest = async (url, data, headers, retries = 3, delay = 10000) => {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const response = await axios.post(url, data, { headers });
-      return response;
-    } catch (error) {
-      console.error(`Retry ${i + 1} failed:`, error.message);
-      if (i < retries - 1) {
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
-  }
-  throw new Error("All retries failed");
-};
+const { getFromCache, setInCache } = require("../utils/cache");
 
 exports.chatWithLLM = async (req, res) => {
   const { message } = req.body;
@@ -22,27 +8,56 @@ exports.chatWithLLM = async (req, res) => {
     return res.status(400).json({ error: "Message is required" });
   }
 
+  const cacheKey = `chat:${message}`;
+
   try {
-    const response = await retryRequest(
-      "https://api-inference.huggingface.co/models/tiiuae/falcon-7b",
-      { inputs: message },
+    const cachedReply = await getFromCache(cacheKey);
+    if (cachedReply) {
+      console.log("Cache hit for message:", message);
+      return res.status(200).json({ reply: cachedReply });
+    }
+
+    console.log("Cache miss for message:", message);
+
+    const response = await axios.post(
+      "https://api-inference.huggingface.co/models/gpt2",
       {
-        Authorization: `Bearer ${process.env.HUGGING_FACE_API_KEY}`,
+        inputs: message,
+        parameters: { max_length: 50 },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.HUGGING_FACE_API_KEY}`,
+        },
       }
     );
 
     if (
-      response.data &&
-      Array.isArray(response.data) &&
-      response.data.length > 0
+      !response.data ||
+      !response.data[0] ||
+      !response.data[0].generated_text
     ) {
-      const generatedText = response.data[0]?.generated_text;
-      return res.status(200).json({ reply: generatedText });
+      console.error("Invalid response from Hugging Face API:", response.data);
+      return res
+        .status(500)
+        .json({ error: "Error generating response from LLM" });
     }
 
-    res.status(200).json({ reply: "Unable to generate response" });
+    let reply = response.data[0].generated_text;
+    reply = reply.split("\n")[0];
+
+    reply = reply.substring(0, 100);
+
+    await setInCache(cacheKey, reply);
+
+    console.log("Response cached for message:", message);
+
+    res.status(200).json({ reply });
   } catch (error) {
-    console.error("Error communicating with Hugging Face API:", error.message);
+    console.error(
+      "Error communicating with Hugging Face API:",
+      error.response ? error.response.data : error.message
+    );
     res.status(500).json({ error: "Error communicating with LLM" });
   }
 };
