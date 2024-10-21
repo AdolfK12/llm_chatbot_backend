@@ -25,6 +25,19 @@ jobs:
         run: npm install
         working-directory: node_backend
 
+      - name: Set environment variables for Redis and MongoDB
+        run: echo "Environment variables set"
+        env:
+          REDIS_HOST: ${{ secrets.REDIS_HOST }}
+          REDIS_PORT: ${{ secrets.REDIS_PORT }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+
       - name: Run tests
         run: npm test
         working-directory: node_backend
+        env:
+          REDIS_HOST: ${{ secrets.REDIS_HOST }}
+          REDIS_PORT: ${{ secrets.REDIS_PORT }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          MONGO_URI: ${{ secrets.MONGO_URI }}
